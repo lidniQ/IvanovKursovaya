@@ -1,0 +1,56 @@
+@page "/routes/details/{RouteId:int}"
+@rendermode InteractiveServer
+@using IvanovKursovaya.Data
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<TicketContext> DbFactory
+
+<PageTitle>Детали маршрута</PageTitle>
+
+<h1>Детали маршрута</h1>
+
+@if (Loading)
+{
+    <p><em>Загрузка...</em></p>
+}
+else if (Route is null)
+{
+    <p>Маршрут не найден.</p>
+}
+else
+{
+    <dl class="row">
+        <dt class="col-sm-3">Откуда</dt>
+        <dd class="col-sm-9">@Route.FromCity</dd>
+        <dt class="col-sm-3">Куда</dt>
+        <dd class="col-sm-9">@Route.ToCity</dd>
+        <dt class="col-sm-3">Расстояние (км)</dt>
+        <dd class="col-sm-9">@Route.DistanceKm</dd>
+        @if (!string.IsNullOrEmpty(Route.ImagePath))
+        {
+            <dt class="col-sm-3">Изображение</dt>
+            <dd class="col-sm-9"><img src="@Route.ImagePath" alt="маршрут" style="max-height:200px;" /></dd>
+        }
+    </dl>
+    <a href="/routes" class="btn btn-secondary">Назад</a>
+    <a href="@($"/schedules?routeid={Route.RouteId}")" class="btn btn-info">Расписания</a>
+}
+
+@code {
+    [Parameter] public int RouteId { get; set; }
+
+    private Route? Route;
+    private bool Loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await using var context = await DbFactory.CreateDbContextAsync();
+            Route = await context.Routes.FindAsync(RouteId);
+        }
+        finally
+        {
+            Loading = false;
+        }
+    }
+}

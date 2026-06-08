@@ -1,0 +1,125 @@
+@page "/schedules/edit/{ScheduleId:int}"
+@rendermode InteractiveServer
+@using IvanovKursovaya.Data
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
+@attribute [Authorize(Roles = "Administrator")]
+@inject IDbContextFactory<TicketContext> DbFactory
+@inject NavigationManager Navigation
+
+<PageTitle>Редактировать расписание</PageTitle>
+
+<h1>Редактировать расписание</h1>
+
+@if (Loading)
+{
+    <p><em>Загрузка...</em></p>
+}
+else if (Schedule is null)
+{
+    <p>Расписание не найдено.</p>
+}
+else
+{
+    <EditForm Model="Schedule" OnValidSubmit="UpdateSchedule" FormName="edit-schedule">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-3">
+            <label>Маршрут</label>
+            <InputSelect @bind-Value="Schedule.RouteId" class="form-select">
+                @foreach (var r in routes)
+                {
+                    <option value="@r.RouteId">@r.FromCity → @r.ToCity</option>
+                }
+            </InputSelect>
+        </div>
+        <div class="mb-3">
+            <label>Дата отправления</label>
+            <InputDate @bind-Value="Schedule.DepartureDate" class="form-control" />
+        </div>
+        <div class="mb-3">
+            <label>Время отправления (ЧЧ:ММ)</label>
+            <input type="time" class="form-control" value="@DepartureTimeStr" @onchange="@(e => DepartureTimeStr = e.Value?.ToString() ?? "08:00")" />
+        </div>
+        <div class="mb-3">
+            <label>Время прибытия (ЧЧ:ММ)</label>
+            <input type="time" class="form-control" value="@ArrivalTimeStr" @onchange="@(e => ArrivalTimeStr = e.Value?.ToString() ?? "16:00")" />
+        </div>
+        <div class="mb-3">
+            <label>Перевозчик</label>
+            <InputText @bind-Value="Schedule.Carrier" class="form-control" />
+        </div>
+        <div class="mb-3">
+            <label>Количество мест</label>
+            <InputNumber @bind-Value="Schedule.TotalSeats" class="form-control" />
+        </div>
+        <div class="mb-3">
+            <label>Цена (₽)</label>
+            <InputNumber @bind-Value="Schedule.Price" class="form-control" />
+        </div>
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger">@errorMessage</div>
+        }
+
+        <button type="submit" class="btn btn-primary" disabled="@Loading">Сохранить</button>
+        <a href="@($"/schedules?routeid={Schedule.RouteId}")" class="btn btn-secondary">Отмена</a>
+    </EditForm>
+}
+
+@code {
+    [Parameter] public int ScheduleId { get; set; }
+
+    private Schedule? Schedule;
+    private List<Route> routes = new();
+    private bool Loading = true;
+    private string? errorMessage;
+    private string DepartureTimeStr = "08:00";
+    private string ArrivalTimeStr = "16:00";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await using var context = await DbFactory.CreateDbContextAsync();
+            Schedule = await context.Schedules.FindAsync(ScheduleId);
+            routes = await context.Routes.ToListAsync();
+            if (Schedule is not null)
+            {
+                DepartureTimeStr = Schedule.DepartureTime.ToString(@"hh\:mm");
+                ArrivalTimeStr = Schedule.ArrivalTime.ToString(@"hh\:mm");
+            }
+        }
+        finally
+        {
+            Loading = false;
+        }
+    }
+
+    private async Task UpdateSchedule()
+    {
+        Loading = true;
+        try
+        {
+            if (TimeSpan.TryParse(DepartureTimeStr, out var dep))
+                Schedule!.DepartureTime = dep;
+            if (TimeSpan.TryParse(ArrivalTimeStr, out var arr))
+                Schedule!.ArrivalTime = arr;
+
+            await using var context = await DbFactory.CreateDbContextAsync();
+            context.Schedules.Update(Schedule!);
+            await context.SaveChangesAsync();
+            Navigation.NavigateTo($"/schedules?routeid={Schedule!.RouteId}");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            Loading = false;
+        }
+    }
+}

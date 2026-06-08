@@ -1,0 +1,96 @@
+@page "/schedules"
+@rendermode InteractiveServer
+@using IvanovKursovaya.Data
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<TicketContext> DbFactory
+@inject NavigationManager Navigation
+
+<PageTitle>Расписания</PageTitle>
+
+<h1>Расписания @(routeName is not null ? $"— {routeName}" : "")</h1>
+
+<AuthorizeView Roles="Administrator">
+    <Authorized>
+        <p>
+            <a href="@($"/schedules/create?routeid={RouteId}")" class="btn btn-primary">Добавить расписание</a>
+        </p>
+    </Authorized>
+</AuthorizeView>
+
+<a href="/routes" class="btn btn-outline-secondary mb-3">← Все маршруты</a>
+
+@if (Loading)
+{
+    <p><em>Загрузка...</em></p>
+}
+else
+{
+    <QuickGrid Items="schedules" class="table table-striped">
+        <PropertyColumn Property="s => s.ScheduleId" Title="№" />
+        <PropertyColumn Property="s => s.DepartureDate" Title="Дата" Format="dd.MM.yyyy" />
+        <TemplateColumn Title="Отправление">
+            @(context.DepartureTime.ToString(@"hh\:mm"))
+        </TemplateColumn>
+        <TemplateColumn Title="Прибытие">
+            @(context.ArrivalTime.ToString(@"hh\:mm"))
+        </TemplateColumn>
+        <PropertyColumn Property="s => s.Carrier" Title="Перевозчик" />
+        <PropertyColumn Property="s => s.TotalSeats" Title="Мест" />
+        <TemplateColumn Title="Цена">
+            @context.Price.ToString("N2") ₽
+        </TemplateColumn>
+        <TemplateColumn Title="Действия">
+            @{ var s = context; }
+            <AuthorizeView Context="auth">
+                <Authorized>
+                    <a href="@($"/buy?scheduleid={s.ScheduleId}")" class="btn btn-sm btn-success">Купить билет</a>
+                </Authorized>
+            </AuthorizeView>
+            <a href="@($"/schedules/details/{s.ScheduleId}")" class="btn btn-sm btn-secondary">Просмотр</a>
+            <AuthorizeView Roles="Administrator" Context="authAdmin">
+                <Authorized>
+                    <a href="@($"/schedules/edit/{s.ScheduleId}")" class="btn btn-sm btn-warning">Изменить</a>
+                    <a href="@($"/schedules/delete/{s.ScheduleId}")" class="btn btn-sm btn-danger">Удалить</a>
+                </Authorized>
+            </AuthorizeView>
+        </TemplateColumn>
+    </QuickGrid>
+}
+
+@code {
+    [SupplyParameterFromQuery]
+    public int? RouteId { get; set; }
+
+    private IQueryable<Schedule> schedules = default!;
+    private bool Loading = true;
+    private TicketContext dbContext = default!;
+    private string? routeName;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            dbContext = await DbFactory.CreateDbContextAsync();
+            if (RouteId.HasValue)
+            {
+                schedules = dbContext.Schedules.Where(s => s.RouteId == RouteId.Value);
+                var route = await dbContext.Routes.FindAsync(RouteId.Value);
+                if (route is not null)
+                    routeName = $"{route.FromCity} → {route.ToCity}";
+            }
+            else
+            {
+                schedules = dbContext.Schedules;
+            }
+        }
+        finally
+        {
+            Loading = false;
+        }
+    }
+
+    public void Dispose() => dbContext?.Dispose();
+}

@@ -1,0 +1,98 @@
+@page "/routes/create"
+@rendermode InteractiveServer
+@using IvanovKursovaya.Data
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
+@attribute [Authorize(Roles = "Administrator")]
+@inject IDbContextFactory<TicketContext> DbFactory
+@inject NavigationManager Navigation
+
+<PageTitle>Добавить маршрут</PageTitle>
+
+<h1>Добавить маршрут</h1>
+
+<EditForm Model="Route" OnValidSubmit="AddRoute" FormName="create-route">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="mb-3">
+        <label>Откуда</label>
+        <InputText @bind-Value="Route.FromCity" class="form-control" />
+        <ValidationMessage For="() => Route.FromCity" />
+    </div>
+    <div class="mb-3">
+        <label>Куда</label>
+        <InputText @bind-Value="Route.ToCity" class="form-control" />
+        <ValidationMessage For="() => Route.ToCity" />
+    </div>
+    <div class="mb-3">
+        <label>Расстояние (км)</label>
+        <InputNumber @bind-Value="Route.DistanceKm" class="form-control" />
+        <ValidationMessage For="() => Route.DistanceKm" />
+    </div>
+    <div class="mb-3">
+        <label>Изображение маршрута</label>
+        <InputFile OnChange="UploadImage" accept="image/*" class="form-control" />
+    </div>
+
+    @if (!string.IsNullOrEmpty(Route.ImagePath))
+    {
+        <div class="mb-3">
+            <img src="@Route.ImagePath" alt="preview" style="max-height:150px;" />
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger">@errorMessage</div>
+    }
+
+    <button type="submit" class="btn btn-primary" disabled="@Loading">Сохранить</button>
+    <a href="/routes" class="btn btn-secondary">Отмена</a>
+</EditForm>
+
+@code {
+    [SupplyParameterFromForm]
+    private Route Route { get; set; } = new();
+    private bool Loading;
+    private string? errorMessage;
+
+    private async Task UploadImage(InputFileChangeEventArgs e)
+    {
+        Loading = true;
+        try
+        {
+            var file = e.File;
+            var ext = Path.GetExtension(file.Name);
+            var fileName = $"{Guid.NewGuid()}{ext}";
+            var path = Path.Combine("wwwroot", "uploads", fileName);
+            await using var fs = new FileStream(path, FileMode.Create);
+            await file.OpenReadStream(5 * 1024 * 1024).CopyToAsync(fs);
+            Route.ImagePath = $"/uploads/{fileName}";
+        }
+        finally
+        {
+            Loading = false;
+        }
+    }
+
+    private async Task AddRoute()
+    {
+        Loading = true;
+        try
+        {
+            await using var context = await DbFactory.CreateDbContextAsync();
+            await context.Routes.AddAsync(Route);
+            await context.SaveChangesAsync();
+            Navigation.NavigateTo("/routes");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            Loading = false;
+        }
+    }
+}

@@ -1,0 +1,244 @@
+@page "/excel"
+@rendermode InteractiveServer
+@using ClosedXML.Excel
+@using IvanovKursovaya.Data
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
+@attribute [Authorize(Roles = "Administrator")]
+@inject IDbContextFactory<TicketContext> DbFactory
+@inject IJSRuntime JS
+
+<PageTitle>Экспорт / Импорт Excel</PageTitle>
+
+<h1>Экспорт / Импорт Excel</h1>
+
+<h3>Экспорт</h3>
+<button class="btn btn-success mb-3" @onclick="ExportExcel" disabled="@Loading">Экспорт в Excel</button>
+
+<h3>Импорт</h3>
+<p>Загрузите файл .xlsx с листами «Routes» и «Schedules».</p>
+<InputFile OnChange="ImportExcel" accept=".xlsx" class="form-control mb-2" style="max-width:400px" />
+
+@if (!string.IsNullOrEmpty(statusMessage))
+{
+    <div class="alert @(hasError ? "alert-danger" : "alert-success")">@statusMessage</div>
+}
+
+@if (importErrors.Count > 0)
+{
+    <h5>Ошибки импорта:</h5>
+    <ul>
+        @foreach (var e in importErrors)
+        {
+            <li>@e</li>
+        }
+    </ul>
+}
+
+@code {
+    private bool Loading;
+    private string? statusMessage;
+    private bool hasError;
+    private List<string> importErrors = new();
+
+    private async Task ExportExcel()
+    {
+        Loading = true;
+        try
+        {
+            await using var context = await DbFactory.CreateDbContextAsync();
+            var routes = await context.Routes.ToListAsync();
+            var schedules = await context.Schedules.Include(s => s.Route).ToListAsync();
+            var tickets = await context.Tickets.Include(t => t.Schedule).ThenInclude(s => s.Route).ToListAsync();
+
+            using var wb = new XLWorkbook();
+
+            var wsR = wb.Worksheets.Add("Routes");
+            wsR.Cell(1, 1).Value = "RouteId";
+            wsR.Cell(1, 2).Value = "Откуда";
+            wsR.Cell(1, 3).Value = "Куда";
+            wsR.Cell(1, 4).Value = "Расстояние (км)";
+            for (int i = 0; i < routes.Count; i++)
+            {
+                wsR.Cell(i + 2, 1).Value = routes[i].RouteId;
+                wsR.Cell(i + 2, 2).Value = routes[i].FromCity;
+                wsR.Cell(i + 2, 3).Value = routes[i].ToCity;
+                wsR.Cell(i + 2, 4).Value = routes[i].DistanceKm;
+            }
+
+            var wsS = wb.Worksheets.Add("Schedules");
+            wsS.Cell(1, 1).Value = "ScheduleId";
+            wsS.Cell(1, 2).Value = "RouteId";
+            wsS.Cell(1, 3).Value = "Маршрут";
+            wsS.Cell(1, 4).Value = "Дата";
+            wsS.Cell(1, 5).Value = "Отправление";
+            wsS.Cell(1, 6).Value = "Прибытие";
+            wsS.Cell(1, 7).Value = "Перевозчик";
+            wsS.Cell(1, 8).Value = "Мест";
+            wsS.Cell(1, 9).Value = "Цена";
+            for (int i = 0; i < schedules.Count; i++)
+            {
+                var s = schedules[i];
+                wsS.Cell(i + 2, 1).Value = s.ScheduleId;
+                wsS.Cell(i + 2, 2).Value = s.RouteId;
+                wsS.Cell(i + 2, 3).Value = $"{s.Route?.FromCity} → {s.Route?.ToCity}";
+                wsS.Cell(i + 2, 4).Value = s.DepartureDate.ToString("dd.MM.yyyy");
+                wsS.Cell(i + 2, 5).Value = s.DepartureTime.ToString(@"hh\:mm");
+                wsS.Cell(i + 2, 6).Value = s.ArrivalTime.ToString(@"hh\:mm");
+                wsS.Cell(i + 2, 7).Value = s.Carrier;
+                wsS.Cell(i + 2, 8).Value = s.TotalSeats;
+                wsS.Cell(i + 2, 9).Value = (double)s.Price;
+            }
+
+            var wsT = wb.Worksheets.Add("Tickets");
+            wsT.Cell(1, 1).Value = "TicketId";
+            wsT.Cell(1, 2).Value = "Пассажир";
+            wsT.Cell(1, 3).Value = "Email";
+            wsT.Cell(1, 4).Value = "Маршрут";
+            wsT.Cell(1, 5).Value = "Дата рейса";
+            wsT.Cell(1, 6).Value = "Место";
+            wsT.Cell(1, 7).Value = "Цена";
+            wsT.Cell(1, 8).Value = "Дата покупки";
+            for (int i = 0; i < tickets.Count; i++)
+            {
+                var t = tickets[i];
+                wsT.Cell(i + 2, 1).Value = t.TicketId;
+                wsT.Cell(i + 2, 2).Value = t.PassengerName;
+                wsT.Cell(i + 2, 3).Value = t.PassengerEmail;
+                wsT.Cell(i + 2, 4).Value = $"{t.Schedule?.Route?.FromCity} → {t.Schedule?.Route?.ToCity}";
+                wsT.Cell(i + 2, 5).Value = t.Schedule?.DepartureDate.ToString("dd.MM.yyyy") ?? "";
+                wsT.Cell(i + 2, 6).Value = t.SeatNumber;
+                wsT.Cell(i + 2, 7).Value = (double)t.TotalPrice;
+                wsT.Cell(i + 2, 8).Value = t.PurchaseDate.ToString("dd.MM.yyyy HH:mm");
+            }
+
+            using var ms = new MemoryStream();
+            wb.SaveAs(ms);
+            var bytes = ms.ToArray();
+            await JS.InvokeVoidAsync("BlazorDownloadFile", "tickets_export.xlsx",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", bytes);
+        }
+        finally
+        {
+            Loading = false;
+        }
+    }
+
+    private async Task ImportExcel(InputFileChangeEventArgs e)
+    {
+        Loading = true;
+        statusMessage = null;
+        hasError = false;
+        importErrors.Clear();
+
+        try
+        {
+            await using var stream = e.File.OpenReadStream(10 * 1024 * 1024);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            ms.Position = 0;
+
+            using var wb = new XLWorkbook(ms);
+
+            await using var context = await DbFactory.CreateDbContextAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync();
+
+            try
+            {
+                if (wb.TryGetWorksheet("Routes", out var wsR))
+                {
+                    int row = 2;
+                    while (!wsR.Cell(row, 2).IsEmpty())
+                    {
+                        var fromCity = wsR.Cell(row, 2).GetString();
+                        var toCity = wsR.Cell(row, 3).GetString();
+                        var distStr = wsR.Cell(row, 4).GetString();
+
+                        if (string.IsNullOrWhiteSpace(fromCity) || string.IsNullOrWhiteSpace(toCity))
+                        {
+                            importErrors.Add($"Строка {row}: пустой город откуда/куда");
+                            row++;
+                            continue;
+                        }
+                        if (!int.TryParse(distStr, out var dist) || dist <= 0)
+                        {
+                            importErrors.Add($"Строка {row}: неверное расстояние «{distStr}»");
+                            row++;
+                            continue;
+                        }
+
+                        await context.Routes.AddAsync(new Route
+                        {
+                            FromCity = fromCity,
+                            ToCity = toCity,
+                            DistanceKm = dist
+                        });
+                        row++;
+                    }
+                }
+
+                if (wb.TryGetWorksheet("Schedules", out var wsS))
+                {
+                    int row = 2;
+                    while (!wsS.Cell(row, 2).IsEmpty())
+                    {
+                        var routeIdStr = wsS.Cell(row, 2).GetString();
+                        var dateStr = wsS.Cell(row, 4).GetString();
+                        var depStr = wsS.Cell(row, 5).GetString();
+                        var arrStr = wsS.Cell(row, 6).GetString();
+                        var carrier = wsS.Cell(row, 7).GetString();
+                        var seatsStr = wsS.Cell(row, 8).GetString();
+                        var priceStr = wsS.Cell(row, 9).GetString();
+
+                        if (!int.TryParse(routeIdStr, out var routeId)
+                            || !DateTime.TryParse(dateStr, out var date)
+                            || !TimeSpan.TryParse(depStr, out var dep)
+                            || !TimeSpan.TryParse(arrStr, out var arr)
+                            || !int.TryParse(seatsStr, out var seats)
+                            || !decimal.TryParse(priceStr, out var price))
+                        {
+                            importErrors.Add($"Строка {row}: ошибка формата данных расписания");
+                            row++;
+                            continue;
+                        }
+
+                        await context.Schedules.AddAsync(new Schedule
+                        {
+                            RouteId = routeId,
+                            DepartureDate = date,
+                            DepartureTime = dep,
+                            ArrivalTime = arr,
+                            Carrier = carrier,
+                            TotalSeats = seats,
+                            Price = price
+                        });
+                        row++;
+                    }
+                }
+
+                if (importErrors.Count > 0)
+                {
+                    await transaction.RollbackAsync();
+                    hasError = true;
+                    statusMessage = "Импорт отменён из-за ошибок. Данные не сохранены.";
+                }
+                else
+                {
+                    await context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                    statusMessage = "Импорт выполнен успешно.";
+                }
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                hasError = true;
+                statusMessage = $"Ошибка импорта: {ex.Message}";
+            }
+        }
+        finally
+        {
+            Loading = false;
+        }
+    }
+}

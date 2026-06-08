@@ -1,0 +1,84 @@
+@page "/alltickets/delete/{TicketId:int}"
+@rendermode InteractiveServer
+@using IvanovKursovaya.Data
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
+@attribute [Authorize(Roles = "Administrator")]
+@inject IDbContextFactory<TicketContext> DbFactory
+@inject NavigationManager Navigation
+
+<PageTitle>Удалить билет</PageTitle>
+
+<h1>Удалить билет</h1>
+
+@if (Loading)
+{
+    <p><em>Загрузка...</em></p>
+}
+else if (Ticket is null)
+{
+    <p>Билет не найден.</p>
+}
+else
+{
+    <p>Вы уверены, что хотите удалить билет пассажира <strong>@Ticket.PassengerName</strong>
+        (@Ticket.Schedule?.Route?.FromCity → @Ticket.Schedule?.Route?.ToCity,
+        место @Ticket.SeatNumber)?
+    </p>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger">@errorMessage</div>
+    }
+
+    <button class="btn btn-danger" @onclick="DeleteConfirmed" disabled="@Loading">Удалить</button>
+    <a href="/alltickets" class="btn btn-secondary">Отмена</a>
+}
+
+@code {
+    [Parameter] public int TicketId { get; set; }
+
+    private Ticket? Ticket;
+    private bool Loading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await using var context = await DbFactory.CreateDbContextAsync();
+            Ticket = await context.Tickets
+                .Include(t => t.Schedule)
+                .ThenInclude(s => s.Route)
+                .FirstOrDefaultAsync(t => t.TicketId == TicketId);
+        }
+        finally
+        {
+            Loading = false;
+        }
+    }
+
+    private async Task DeleteConfirmed()
+    {
+        Loading = true;
+        try
+        {
+            await using var context = await DbFactory.CreateDbContextAsync();
+            var ticket = await context.Tickets.FindAsync(TicketId);
+            if (ticket is not null)
+            {
+                context.Tickets.Remove(ticket);
+                await context.SaveChangesAsync();
+            }
+            Navigation.NavigateTo("/alltickets");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            Loading = false;
+        }
+    }
+}

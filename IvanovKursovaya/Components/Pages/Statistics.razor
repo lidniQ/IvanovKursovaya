@@ -1,0 +1,99 @@
+@page "/statistics"
+@rendermode InteractiveServer
+@using IvanovKursovaya.Data
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
+@using Plotly.Blazor
+@using Plotly.Blazor.Traces
+@using Plotly.Blazor.LayoutLib
+@attribute [Authorize(Roles = "Administrator")]
+@inject IDbContextFactory<TicketContext> DbFactory
+
+<PageTitle>Статистика</PageTitle>
+
+<h1>Статистика продаж</h1>
+
+@if (Loading)
+{
+    <p><em>Загрузка...</em></p>
+}
+else
+{
+    <h3>Продажи по маршрутам</h3>
+    <PlotlyChart @bind-Data="barData" @bind-Layout="barLayout" @bind-Config="config" />
+
+    <h3 class="mt-4">Продажи за последние 30 дней</h3>
+    <PlotlyChart @bind-Data="lineData" @bind-Layout="lineLayout" @bind-Config="config" />
+}
+
+@code {
+    private bool Loading = true;
+
+    private IList<ITrace> barData = new List<ITrace>();
+    private Layout barLayout = new();
+    private IList<ITrace> lineData = new List<ITrace>();
+    private Layout lineLayout = new();
+    private Config config = new Config { Responsive = true };
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await using var context = await DbFactory.CreateDbContextAsync();
+
+            // Столбчатая: продажи по маршрутам
+            var byRoute = await context.Tickets
+                .Include(t => t.Schedule)
+                .ThenInclude(s => s.Route)
+                .GroupBy(t => t.Schedule.Route.FromCity + " → " + t.Schedule.Route.ToCity)
+                .Select(g => new { Route = g.Key, Count = g.Count() })
+                .ToListAsync();
+
+            barData = new List<ITrace>
+            {
+                new Bar
+                {
+                    X = byRoute.Select(x => (object)x.Route).ToList(),
+                    Y = byRoute.Select(x => (object)x.Count).ToList(),
+                    Name = "Билеты"
+                }
+            };
+            barLayout = new Layout
+            {
+                Title = new Title { Text = "Количество проданных билетов по маршрутам" },
+                XAxis = new List<XAxis> { new XAxis { Title = new Plotly.Blazor.LayoutLib.XAxisLib.Title { Text = "Маршрут" } } },
+                YAxis = new List<YAxis> { new YAxis { Title = new Plotly.Blazor.LayoutLib.YAxisLib.Title { Text = "Количество" } } }
+            };
+
+            // Линейный: продажи по датам за 30 дней
+            var from30 = DateTime.Today.AddDays(-30);
+            var byDate = await context.Tickets
+                .Where(t => t.PurchaseDate >= from30)
+                .GroupBy(t => t.PurchaseDate.Date)
+                .Select(g => new { Date = g.Key, Count = g.Count() })
+                .OrderBy(x => x.Date)
+                .ToListAsync();
+
+            lineData = new List<ITrace>
+            {
+                new Scatter
+                {
+                    X = byDate.Select(x => (object)x.Date.ToString("dd.MM")).ToList(),
+                    Y = byDate.Select(x => (object)x.Count).ToList(),
+                    Mode = Plotly.Blazor.Traces.ScatterLib.ModeFlag.Lines | Plotly.Blazor.Traces.ScatterLib.ModeFlag.Markers,
+                    Name = "Продажи"
+                }
+            };
+            lineLayout = new Layout
+            {
+                Title = new Title { Text = "Продажи за последние 30 дней" },
+                XAxis = new List<XAxis> { new XAxis { Title = new Plotly.Blazor.LayoutLib.XAxisLib.Title { Text = "Дата" } } },
+                YAxis = new List<YAxis> { new YAxis { Title = new Plotly.Blazor.LayoutLib.YAxisLib.Title { Text = "Количество" } } }
+            };
+        }
+        finally
+        {
+            Loading = false;
+        }
+    }
+}

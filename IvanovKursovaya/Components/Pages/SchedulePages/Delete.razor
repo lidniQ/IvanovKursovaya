@@ -1,0 +1,80 @@
+@page "/schedules/delete/{ScheduleId:int}"
+@rendermode InteractiveServer
+@using IvanovKursovaya.Data
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
+@attribute [Authorize(Roles = "Administrator")]
+@inject IDbContextFactory<TicketContext> DbFactory
+@inject NavigationManager Navigation
+
+<PageTitle>Удалить расписание</PageTitle>
+
+<h1>Удалить расписание</h1>
+
+@if (Loading)
+{
+    <p><em>Загрузка...</em></p>
+}
+else if (Schedule is null)
+{
+    <p>Расписание не найдено.</p>
+}
+else
+{
+    <p>Вы уверены, что хотите удалить расписание
+        <strong>@Schedule.DepartureDate.ToString("dd.MM.yyyy") @Schedule.DepartureTime.ToString(@"hh\:mm") (@Schedule.Carrier)</strong>?
+    </p>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger">@errorMessage</div>
+    }
+
+    <button class="btn btn-danger" @onclick="DeleteConfirmed" disabled="@Loading">Удалить</button>
+    <a href="@($"/schedules?routeid={Schedule.RouteId}")" class="btn btn-secondary">Отмена</a>
+}
+
+@code {
+    [Parameter] public int ScheduleId { get; set; }
+
+    private Schedule? Schedule;
+    private bool Loading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await using var context = await DbFactory.CreateDbContextAsync();
+            Schedule = await context.Schedules.FindAsync(ScheduleId);
+        }
+        finally
+        {
+            Loading = false;
+        }
+    }
+
+    private async Task DeleteConfirmed()
+    {
+        Loading = true;
+        try
+        {
+            await using var context = await DbFactory.CreateDbContextAsync();
+            var schedule = await context.Schedules.FindAsync(ScheduleId);
+            if (schedule is not null)
+            {
+                context.Schedules.Remove(schedule);
+                await context.SaveChangesAsync();
+            }
+            Navigation.NavigateTo($"/schedules?routeid={Schedule!.RouteId}");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            Loading = false;
+        }
+    }
+}

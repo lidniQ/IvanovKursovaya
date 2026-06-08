@@ -1,0 +1,60 @@
+@page "/alltickets"
+@rendermode InteractiveServer
+@using IvanovKursovaya.Data
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using Microsoft.EntityFrameworkCore
+@attribute [Authorize(Roles = "Administrator")]
+@inject IDbContextFactory<TicketContext> DbFactory
+
+<PageTitle>Все билеты</PageTitle>
+
+<h1>Все билеты</h1>
+
+@if (Loading)
+{
+    <p><em>Загрузка...</em></p>
+}
+else
+{
+    <QuickGrid Items="tickets" class="table table-striped">
+        <PropertyColumn Property="t => t.PassengerName" Title="Пассажир" />
+        <PropertyColumn Property="t => t.PassengerEmail" Title="Email" />
+        <TemplateColumn Title="Маршрут">
+            @context.Schedule?.Route?.FromCity → @context.Schedule?.Route?.ToCity
+        </TemplateColumn>
+        <TemplateColumn Title="Дата рейса">
+            @context.Schedule?.DepartureDate.ToString("dd.MM.yyyy")
+        </TemplateColumn>
+        <PropertyColumn Property="t => t.SeatNumber" Title="Место" />
+        <TemplateColumn Title="Цена">
+            @context.TotalPrice.ToString("N2") ₽
+        </TemplateColumn>
+        <TemplateColumn Title="Действия">
+            <a href="@($"/alltickets/delete/{context.TicketId}")" class="btn btn-sm btn-danger">Удалить</a>
+        </TemplateColumn>
+    </QuickGrid>
+}
+
+@code {
+    private IQueryable<Ticket> tickets = default!;
+    private bool Loading = true;
+    private TicketContext dbContext = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            dbContext = await DbFactory.CreateDbContextAsync();
+            tickets = dbContext.Tickets
+                .Include(t => t.Schedule)
+                .ThenInclude(s => s.Route);
+        }
+        finally
+        {
+            Loading = false;
+        }
+    }
+
+    public void Dispose() => dbContext?.Dispose();
+}

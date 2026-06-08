@@ -1,0 +1,78 @@
+@page "/routes/delete/{RouteId:int}"
+@rendermode InteractiveServer
+@using IvanovKursovaya.Data
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
+@attribute [Authorize(Roles = "Administrator")]
+@inject IDbContextFactory<TicketContext> DbFactory
+@inject NavigationManager Navigation
+
+<PageTitle>Удалить маршрут</PageTitle>
+
+<h1>Удалить маршрут</h1>
+
+@if (Loading)
+{
+    <p><em>Загрузка...</em></p>
+}
+else if (Route is null)
+{
+    <p>Маршрут не найден.</p>
+}
+else
+{
+    <p>Вы уверены, что хотите удалить маршрут <strong>@Route.FromCity → @Route.ToCity</strong>?</p>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger">@errorMessage</div>
+    }
+
+    <button class="btn btn-danger" @onclick="DeleteConfirmed" disabled="@Loading">Удалить</button>
+    <a href="/routes" class="btn btn-secondary">Отмена</a>
+}
+
+@code {
+    [Parameter] public int RouteId { get; set; }
+
+    private Route? Route;
+    private bool Loading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await using var context = await DbFactory.CreateDbContextAsync();
+            Route = await context.Routes.FindAsync(RouteId);
+        }
+        finally
+        {
+            Loading = false;
+        }
+    }
+
+    private async Task DeleteConfirmed()
+    {
+        Loading = true;
+        try
+        {
+            await using var context = await DbFactory.CreateDbContextAsync();
+            var route = await context.Routes.FindAsync(RouteId);
+            if (route is not null)
+            {
+                context.Routes.Remove(route);
+                await context.SaveChangesAsync();
+            }
+            Navigation.NavigateTo("/routes");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            Loading = false;
+        }
+    }
+}

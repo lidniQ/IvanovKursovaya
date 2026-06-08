@@ -1,0 +1,74 @@
+@page "/mytickets"
+@rendermode InteractiveServer
+@attribute [StreamRendering]
+@using IvanovKursovaya.Data
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using Microsoft.EntityFrameworkCore
+@attribute [Authorize]
+@inject IDbContextFactory<TicketContext> DbFactory
+@inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Мои билеты</PageTitle>
+
+<h1>Мои билеты</h1>
+
+@if (Loading)
+{
+    <p><em>Загрузка...</em></p>
+}
+else if (!tickets.Any())
+{
+    <p>У вас пока нет купленных билетов.</p>
+    <a href="/routes" class="btn btn-primary">Найти рейсы</a>
+}
+else
+{
+    <QuickGrid Items="tickets.AsQueryable()" class="table table-striped">
+        <TemplateColumn Title="Маршрут">
+            @context.Schedule?.Route?.FromCity → @context.Schedule?.Route?.ToCity
+        </TemplateColumn>
+        <TemplateColumn Title="Дата рейса">
+            @context.Schedule?.DepartureDate.ToString("dd.MM.yyyy")
+        </TemplateColumn>
+        <TemplateColumn Title="Отправление">
+            @context.Schedule?.DepartureTime.ToString(@"hh\:mm")
+        </TemplateColumn>
+        <PropertyColumn Property="t => t.SeatNumber" Title="Место" />
+        <TemplateColumn Title="Цена">
+            @context.TotalPrice.ToString("N2") ₽
+        </TemplateColumn>
+        <TemplateColumn Title="Дата покупки">
+            @context.PurchaseDate.ToString("dd.MM.yyyy HH:mm")
+        </TemplateColumn>
+    </QuickGrid>
+}
+
+@code {
+    private List<Ticket> tickets = new();
+    private bool Loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = await UserManager.GetUserAsync(authState.User);
+            if (user is null) return;
+
+            var email = user.Email ?? "";
+            await using var context = await DbFactory.CreateDbContextAsync();
+            tickets = await context.Tickets
+                .Include(t => t.Schedule)
+                .ThenInclude(s => s.Route)
+                .Where(t => t.PassengerEmail == email)
+                .ToListAsync();
+        }
+        finally
+        {
+            Loading = false;
+        }
+    }
+}

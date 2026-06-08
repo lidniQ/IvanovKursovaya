@@ -1,0 +1,78 @@
+@page "/routes"
+@rendermode InteractiveServer
+@using IvanovKursovaya.Data
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<TicketContext> DbFactory
+@inject NavigationManager Navigation
+
+<PageTitle>Маршруты</PageTitle>
+
+<h1>Маршруты</h1>
+
+<AuthorizeView Roles="Administrator">
+    <Authorized>
+        <p><a href="/routes/create" class="btn btn-primary">Добавить маршрут</a></p>
+    </Authorized>
+</AuthorizeView>
+
+@if (Loading)
+{
+    <p><em>Загрузка...</em></p>
+}
+else
+{
+    <QuickGrid Items="routes" class="table table-striped">
+        <PropertyColumn Property="r => r.RouteId" Title="№" />
+        <PropertyColumn Property="r => r.FromCity" Title="Откуда" />
+        <PropertyColumn Property="r => r.ToCity" Title="Куда" />
+        <PropertyColumn Property="r => r.DistanceKm" Title="Расстояние (км)" />
+        <TemplateColumn Title="Изображение">
+            @if (!string.IsNullOrEmpty(context.ImagePath))
+            {
+                <img src="@context.ImagePath" alt="маршрут" style="height:40px;" />
+            }
+            else
+            {
+                <span>—</span>
+            }
+        </TemplateColumn>
+        <TemplateColumn Title="Действия">
+            @{ var r = context; }
+            <a href="@($"/schedules?routeid={r.RouteId}")" class="btn btn-sm btn-info">Расписания</a>
+            <a href="@($"/routes/details/{r.RouteId}")" class="btn btn-sm btn-secondary">Просмотр</a>
+            <AuthorizeView Roles="Administrator" Context="auth">
+                <Authorized>
+                    <a href="@($"/routes/edit/{r.RouteId}")" class="btn btn-sm btn-warning">Изменить</a>
+                    <a href="@($"/routes/delete/{r.RouteId}")" class="btn btn-sm btn-danger">Удалить</a>
+                </Authorized>
+            </AuthorizeView>
+        </TemplateColumn>
+    </QuickGrid>
+}
+
+@code {
+    private IQueryable<Route> routes = default!;
+    private bool Loading = true;
+    private TicketContext context = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            context = await DbFactory.CreateDbContextAsync();
+            routes = context.Routes;
+        }
+        finally
+        {
+            Loading = false;
+        }
+    }
+
+    public void Dispose()
+    {
+        context?.Dispose();
+    }
+}

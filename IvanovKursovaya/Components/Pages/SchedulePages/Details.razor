@@ -1,0 +1,63 @@
+@page "/schedules/details/{ScheduleId:int}"
+@rendermode InteractiveServer
+@using IvanovKursovaya.Data
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<TicketContext> DbFactory
+
+<PageTitle>Детали расписания</PageTitle>
+
+<h1>Детали расписания</h1>
+
+@if (Loading)
+{
+    <p><em>Загрузка...</em></p>
+}
+else if (Schedule is null)
+{
+    <p>Расписание не найдено.</p>
+}
+else
+{
+    <dl class="row">
+        <dt class="col-sm-3">Маршрут</dt>
+        <dd class="col-sm-9">@Schedule.Route?.FromCity → @Schedule.Route?.ToCity</dd>
+        <dt class="col-sm-3">Дата</dt>
+        <dd class="col-sm-9">@Schedule.DepartureDate.ToString("dd.MM.yyyy")</dd>
+        <dt class="col-sm-3">Отправление</dt>
+        <dd class="col-sm-9">@Schedule.DepartureTime.ToString(@"hh\:mm")</dd>
+        <dt class="col-sm-3">Прибытие</dt>
+        <dd class="col-sm-9">@Schedule.ArrivalTime.ToString(@"hh\:mm")</dd>
+        <dt class="col-sm-3">Перевозчик</dt>
+        <dd class="col-sm-9">@Schedule.Carrier</dd>
+        <dt class="col-sm-3">Мест</dt>
+        <dd class="col-sm-9">@Schedule.TotalSeats</dd>
+        <dt class="col-sm-3">Цена</dt>
+        <dd class="col-sm-9">@Schedule.Price.ToString("N2") ₽</dd>
+    </dl>
+    <a href="@($"/schedules?routeid={Schedule.RouteId}")" class="btn btn-secondary">Назад</a>
+    <AuthorizeView>
+        <Authorized>
+            <a href="@($"/buy?scheduleid={Schedule.ScheduleId}")" class="btn btn-success">Купить билет</a>
+        </Authorized>
+    </AuthorizeView>
+}
+
+@code {
+    [Parameter] public int ScheduleId { get; set; }
+
+    private Schedule? Schedule;
+    private bool Loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await using var context = await DbFactory.CreateDbContextAsync();
+            Schedule = await context.Schedules.Include(s => s.Route).FirstOrDefaultAsync(s => s.ScheduleId == ScheduleId);
+        }
+        finally
+        {
+            Loading = false;
+        }
+    }
+}

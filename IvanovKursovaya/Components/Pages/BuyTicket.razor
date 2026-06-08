@@ -1,0 +1,157 @@
+@page "/buy"
+@rendermode InteractiveServer
+@using IvanovKursovaya.Data
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
+@attribute [Authorize]
+@inject IDbContextFactory<TicketContext> DbFactory
+@inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+
+<PageTitle>Купить билет</PageTitle>
+
+<h1>Купить билет</h1>
+
+@if (Loading)
+{
+    <p><em>Загрузка...</em></p>
+}
+else if (Schedule is null)
+{
+    <p>Расписание не найдено.</p>
+}
+else
+{
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">@Schedule.Route?.FromCity → @Schedule.Route?.ToCity</h5>
+            <p class="card-text">
+                <strong>Дата:</strong> @Schedule.DepartureDate.ToString("dd.MM.yyyy")<br />
+                <strong>Отправление:</strong> @Schedule.DepartureTime.ToString(@"hh\:mm")<br />
+                <strong>Прибытие:</strong> @Schedule.ArrivalTime.ToString(@"hh\:mm")<br />
+                <strong>Перевозчик:</strong> @Schedule.Carrier<br />
+                <strong>Цена:</strong> @Schedule.Price.ToString("N2") ₽
+            </p>
+        </div>
+    </div>
+
+    @if (takenSeats.Count > 0)
+    {
+        <p><strong>Занятые места:</strong> @string.Join(", ", takenSeats)</p>
+    }
+
+    <EditForm Model="Ticket" OnValidSubmit="BuyConfirmed" FormName="buy-ticket">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-3">
+            <label>Имя пассажира</label>
+            <InputText @bind-Value="Ticket.PassengerName" class="form-control" />
+            <ValidationMessage For="() => Ticket.PassengerName" />
+        </div>
+        <div class="mb-3">
+            <label>Email</label>
+            <InputText @bind-Value="Ticket.PassengerEmail" class="form-control" />
+            <ValidationMessage For="() => Ticket.PassengerEmail" />
+        </div>
+        <div class="mb-3">
+            <label>Номер места (1–@Schedule.TotalSeats)</label>
+            <InputNumber @bind-Value="Ticket.SeatNumber" class="form-control" min="1" max="@Schedule.TotalSeats" />
+            <ValidationMessage For="() => Ticket.SeatNumber" />
+        </div>
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger">@errorMessage</div>
+        }
+
+        <button type="submit" class="btn btn-success" disabled="@Loading">Купить билет</button>
+        <a href="@($"/schedules?routeid={Schedule.RouteId}")" class="btn btn-secondary">Отмена</a>
+    </EditForm>
+}
+
+@code {
+    [SupplyParameterFromQuery]
+    public int ScheduleId { get; set; }
+
+    [SupplyParameterFromForm]
+    private Ticket Ticket { get; set; } = new();
+
+    private Schedule? Schedule;
+    private List<int> takenSeats = new();
+    private bool Loading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await using var context = await DbFactory.CreateDbContextAsync();
+            Schedule = await context.Schedules
+                .Include(s => s.Route)
+                .FirstOrDefaultAsync(s => s.ScheduleId == ScheduleId);
+
+            if (Schedule is not null)
+            {
+                takenSeats = await context.Tickets
+                    .Where(t => t.ScheduleId == ScheduleId)
+                    .Select(t => t.SeatNumber)
+                    .ToListAsync();
+
+                Ticket.ScheduleId = ScheduleId;
+                Ticket.TotalPrice = Schedule.Price;
+
+                var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+                var user = await UserManager.GetUserAsync(authState.User);
+                if (user is not null)
+                {
+                    Ticket.PassengerName = $"{user.Surname} {user.Ima}";
+                    Ticket.PassengerEmail = user.Email ?? "";
+                }
+            }
+        }
+        finally
+        {
+            Loading = false;
+        }
+    }
+
+    private async Task BuyConfirmed()
+    {
+        Loading = true;
+        try
+        {
+            if (takenSeats.Contains(Ticket.SeatNumber))
+            {
+                errorMessage = $"Место {Ticket.SeatNumber} уже занято. Выберите другое.";
+                return;
+            }
+
+            await using var context = await DbFactory.CreateDbContextAsync();
+
+            var alreadyTaken = await context.Tickets
+                .AnyAsync(t => t.ScheduleId == ScheduleId && t.SeatNumber == Ticket.SeatNumber);
+            if (alreadyTaken)
+            {
+                errorMessage = $"Место {Ticket.SeatNumber} уже занято. Выберите другое.";
+                return;
+            }
+
+            Ticket.PurchaseDate = DateTime.Now;
+            Ticket.TotalPrice = Schedule!.Price;
+            await context.Tickets.AddAsync(Ticket);
+            await context.SaveChangesAsync();
+            Navigation.NavigateTo("/mytickets");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            Loading = false;
+        }
+    }
+}
