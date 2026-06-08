@@ -49,7 +49,10 @@
       "PowerShell($env:PATH = [System.Environment]::GetEnvironmentVariable\\(\"PATH\",\"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"PATH\",\"User\"\\); Get-ChildItem \"c:\\\\danil\\\\IvanovKursovaya\\\\IvanovKursovaya\\\\bin\\\\Debug\\\\net9.0\\\\wwwroot\\\\_content\\\\\" -ErrorAction SilentlyContinue | Select-Object Name)",
       "PowerShell($env:PATH = [System.Environment]::GetEnvironmentVariable\\(\"PATH\",\"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"PATH\",\"User\"\\); dotnet publish \"c:\\\\danil\\\\IvanovKursovaya\\\\IvanovKursovaya\" -o \"c:\\\\danil\\\\IvanovKursovaya\\\\IvanovKursovaya\\\\publish\" --no-build 2>&1 | Select-Object -Last 3; Get-ChildItem \"c:\\\\danil\\\\IvanovKursovaya\\\\IvanovKursovaya\\\\publish\\\\wwwroot\\\\_content\\\\\" -ErrorAction SilentlyContinue | Select-Object Name)",
       "PowerShell($env:PATH = [System.Environment]::GetEnvironmentVariable\\(\"PATH\",\"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"PATH\",\"User\"\\); Get-ChildItem \"c:\\\\Users\\\\jugge\\\\.nuget\\\\packages\\\\plotly.blazor\\\\\" -ErrorAction SilentlyContinue | Select-Object Name)",
-      "PowerShell($env:PATH = [System.Environment]::GetEnvironmentVariable\\(\"PATH\",\"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"PATH\",\"User\"\\); Set-Location \"c:\\\\danil\\\\IvanovKursovaya\\\\IvanovKursovaya\"; dotnet build 2>&1 | Select-Object -Last 8)"
+      "PowerShell($env:PATH = [System.Environment]::GetEnvironmentVariable\\(\"PATH\",\"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"PATH\",\"User\"\\); Set-Location \"c:\\\\danil\\\\IvanovKursovaya\\\\IvanovKursovaya\"; dotnet build 2>&1 | Select-Object -Last 8)",
+      "Bash(Get-ChildItem -Path \"c:\\\\danil\\\\IvanovKursovaya\\\\IvanovKursovaya\\\\Components\" -Recurse -Include *.razor, *.cs)",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "PowerShell(cd \"c:\\\\danil\\\\IvanovKursovaya\\\\IvanovKursovaya\"; $env:PATH = [System.Environment]::GetEnvironmentVariable\\(\"PATH\",\"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"PATH\",\"User\"\\); dotnet build 2>&1 | Select-Object -Last 20)"
     ]
   }
 }
