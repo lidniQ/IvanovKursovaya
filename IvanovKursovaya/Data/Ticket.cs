@@ -17,6 +17,32 @@ public class Ticket
     [DataType(DataType.EmailAddress)]
     public string PassengerEmail { get; set; } = "";
 
+    [StringLength(100)]
+    public string PassengerSurname { get; set; } = "";
+
+    [StringLength(100)]
+    public string PassengerIma { get; set; } = "";
+
+    [StringLength(100)]
+    public string PassengerPatronymic { get; set; } = "";
+
+    public DateTime? PassengerBirthDate { get; set; }
+
+    [StringLength(20)]
+    public string PassengerGender { get; set; } = "";
+
+    [StringLength(100)]
+    public string PassengerCitizenship { get; set; } = "РОССИЯ";
+
+    [StringLength(100)]
+    public string DocumentType { get; set; } = "Паспорт гражданина РФ";
+
+    [StringLength(50)]
+    public string DocumentNumber { get; set; } = "";
+
+    [StringLength(50)]
+    public string Tariff { get; set; } = "Пассажирский";
+
     [Range(1, 200, ErrorMessage = "Номер места от 1 до 200")]
     public int SeatNumber { get; set; }
 

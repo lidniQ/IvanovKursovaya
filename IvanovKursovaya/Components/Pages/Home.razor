@@ -1,16 +1,71 @@
 @page "/"
+@rendermode InteractiveServer
+@inject NavigationManager Navigation
 
-<PageTitle>Продажа билетов на автобусы</PageTitle>
+<PageTitle>Купить билет на автобус</PageTitle>
 
-<div class="container mt-5">
-    <div class="text-center">
-        <h1 class="display-4">Продажа билетов на автобусы</h1>
-        <p class="lead mt-3">
-            Удобный сервис для покупки электронных билетов на междугородние автобусы.
-            Выберите маршрут, забронируйте место и отправляйтесь в путь!
-        </p>
-        <hr class="my-4" />
-        <p>Более 3 маршрутов по всей стране. Быстро, удобно, надёжно.</p>
-        <a class="btn btn-primary btn-lg" href="/routes">Найти рейсы</a>
+<div class="hero-section mb-4">
+    <h1>Купить билет на автобус</h1>
+    <p class="mb-0">Быстрый поиск рейсов по всем маршрутам</p>
+</div>
+
+<div class="search-panel mb-5">
+    <div class="row g-3 align-items-end">
+        <div class="col-md-4">
+            <label class="form-label text-white fw-semibold mb-1">Пункт отправления</label>
+            <input type="text" class="form-control" placeholder="Откуда?" @bind="fromCity" @bind:event="oninput" />
+        </div>
+        <div class="col-md-4">
+            <label class="form-label text-white fw-semibold mb-1">Пункт прибытия</label>
+            <input type="text" class="form-control" placeholder="Куда?" @bind="toCity" @bind:event="oninput" />
+        </div>
+        <div class="col-md-2">
+            <label class="form-label text-white fw-semibold mb-1">Дата выезда</label>
+            <input type="date" class="form-control" @bind="searchDate" />
+        </div>
+        <div class="col-md-2">
+            <button class="btn btn-search w-100 fw-bold" @onclick="Search">Найти</button>
+        </div>
     </div>
 </div>
+
+<div class="container-fluid px-0">
+    <div class="row g-4">
+        <div class="col-md-4">
+            <div class="card h-100 text-center p-4">
+                <div style="font-size:2.5rem;">🚌</div>
+                <h5 class="mt-3">Все маршруты</h5>
+                <p class="text-muted">Более 3 маршрутов по России</p>
+                <a href="/routes" class="btn btn-primary mt-auto">Смотреть маршруты</a>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100 text-center p-4">
+                <div style="font-size:2.5rem;">🎫</div>
+                <h5 class="mt-3">Мои билеты</h5>
+                <p class="text-muted">Управляйте купленными билетами</p>
+                <a href="/mytickets" class="btn btn-primary mt-auto">Мои билеты</a>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100 text-center p-4">
+                <div style="font-size:2.5rem;">📋</div>
+                <h5 class="mt-3">Расписание</h5>
+                <p class="text-muted">Актуальное расписание рейсов</p>
+                <a href="/routes" class="btn btn-primary mt-auto">Расписание</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string fromCity = "";
+    private string toCity = "";
+    private DateTime searchDate = DateTime.Today;
+
+    private void Search()
+    {
+        var url = $"/search?from={Uri.EscapeDataString(fromCity)}&to={Uri.EscapeDataString(toCity)}&date={searchDate:yyyy-MM-dd}";
+        Navigation.NavigateTo(url);
+    }
+}

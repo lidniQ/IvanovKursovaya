@@ -20,4 +20,5 @@ public class Route
     public string? ImagePath { get; set; }
 
     public virtual ICollection<Schedule> Schedules { get; set; } = new List<Schedule>();
+    public virtual ICollection<RouteStop> Stops { get; set; } = new List<RouteStop>();
 }

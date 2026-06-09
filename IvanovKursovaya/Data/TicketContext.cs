@@ -10,4 +10,5 @@ public class TicketContext(DbContextOptions<TicketContext> options)
     public DbSet<Route> Routes { get; set; }
     public DbSet<Schedule> Schedules { get; set; }
     public DbSet<Ticket> Tickets { get; set; }
+    public DbSet<RouteStop> RouteStops { get; set; }
 }

@@ -56,6 +56,19 @@
                 </InputSelect>
             </div>
             <div class="form-floating mb-3">
+                <InputSelect @bind-Value="Input.DocumentType" id="Input.DocumentType" class="form-select">
+                    <option value="Паспорт гражданина РФ">Паспорт гражданина РФ</option>
+                    <option value="Загранпаспорт">Загранпаспорт</option>
+                    <option value="Свидетельство о рождении">Свидетельство о рождении</option>
+                </InputSelect>
+                <label for="Input.DocumentType">Тип документа</label>
+            </div>
+            <div class="form-floating mb-3">
+                <InputText @bind-Value="Input.DocumentNumber" id="Input.DocumentNumber" class="form-control" placeholder="Серия и номер" />
+                <label for="Input.DocumentNumber">Номер документа</label>
+                <ValidationMessage For="() => Input.DocumentNumber" class="text-danger" />
+            </div>
+            <div class="form-floating mb-3">
                 <InputText @bind-Value="Input.Email" id="Input.Email" class="form-control" autocomplete="username" aria-required="true" placeholder="name@example.com" />
                 <label for="Input.Email">Email</label>
                 <ValidationMessage For="() => Input.Email" class="text-danger" />
@@ -101,6 +114,8 @@
         user.Ima = Input.Ima;
         user.SecSurname = Input.SecSurname;
         user.CityId = Input.CityId == 0 ? null : Input.CityId;
+        user.DocumentType = Input.DocumentType;
+        user.DocumentNumber = Input.DocumentNumber;
 
         await UserStore.SetUserNameAsync(user, Input.Email, CancellationToken.None);
         var emailStore = GetEmailStore();
@@ -171,6 +186,11 @@
         public string SecSurname { get; set; } = "";
 
         public int CityId { get; set; }
+
+        public string DocumentType { get; set; } = "Паспорт гражданина РФ";
+
+        [StringLength(50)]
+        public string DocumentNumber { get; set; } = "";
 
         [Required(ErrorMessage = "Email обязателен")]
         [EmailAddress(ErrorMessage = "Неверный формат email")]

@@ -83,6 +83,43 @@ public static class SeedData
             await context.SaveChangesAsync();
         }
 
+        // Создаём остановки маршрутов
+        if (!await context.RouteStops.AnyAsync())
+        {
+            var routes = await context.Routes.ToListAsync();
+            if (routes.Count >= 1)
+            {
+                context.RouteStops.AddRange(
+                    new RouteStop { RouteId = routes[0].RouteId, StopNumber = 1, StationName = routes[0].FromCity, Region = "Россия", TravelTime = "--", DistanceKm = null },
+                    new RouteStop { RouteId = routes[0].RouteId, StopNumber = 2, StationName = "Тверь", Region = "Тверская область, Россия", TravelTime = "02:00", DistanceKm = 167 },
+                    new RouteStop { RouteId = routes[0].RouteId, StopNumber = 3, StationName = "Вышний Волочёк", Region = "Тверская область, Россия", TravelTime = "03:30", DistanceKm = 294 },
+                    new RouteStop { RouteId = routes[0].RouteId, StopNumber = 4, StationName = "Новгород", Region = "Новгородская область, Россия", TravelTime = "05:00", DistanceKm = 450 },
+                    new RouteStop { RouteId = routes[0].RouteId, StopNumber = 5, StationName = routes[0].ToCity, Region = "Россия", TravelTime = "08:30", DistanceKm = 700 }
+                );
+            }
+            if (routes.Count >= 2)
+            {
+                context.RouteStops.AddRange(
+                    new RouteStop { RouteId = routes[1].RouteId, StopNumber = 1, StationName = routes[1].FromCity, Region = "Россия", TravelTime = "--", DistanceKm = null },
+                    new RouteStop { RouteId = routes[1].RouteId, StopNumber = 2, StationName = "Владимир", Region = "Владимирская область, Россия", TravelTime = "02:30", DistanceKm = 190 },
+                    new RouteStop { RouteId = routes[1].RouteId, StopNumber = 3, StationName = "Нижний Новгород", Region = "Нижегородская область, Россия", TravelTime = "05:00", DistanceKm = 410 },
+                    new RouteStop { RouteId = routes[1].RouteId, StopNumber = 4, StationName = "Чебоксары", Region = "Чувашская Республика, Россия", TravelTime = "07:30", DistanceKm = 620 },
+                    new RouteStop { RouteId = routes[1].RouteId, StopNumber = 5, StationName = routes[1].ToCity, Region = "Россия", TravelTime = "10:00", DistanceKm = 820 }
+                );
+            }
+            if (routes.Count >= 3)
+            {
+                context.RouteStops.AddRange(
+                    new RouteStop { RouteId = routes[2].RouteId, StopNumber = 1, StationName = routes[2].FromCity, Region = "Россия", TravelTime = "--", DistanceKm = null },
+                    new RouteStop { RouteId = routes[2].RouteId, StopNumber = 2, StationName = "Петрозаводск", Region = "Карелия, Россия", TravelTime = "03:00", DistanceKm = 280 },
+                    new RouteStop { RouteId = routes[2].RouteId, StopNumber = 3, StationName = "Москва", Region = "Россия", TravelTime = "08:00", DistanceKm = 700 },
+                    new RouteStop { RouteId = routes[2].RouteId, StopNumber = 4, StationName = "Нижний Новгород", Region = "Нижегородская область, Россия", TravelTime = "12:00", DistanceKm = 1100 },
+                    new RouteStop { RouteId = routes[2].RouteId, StopNumber = 5, StationName = routes[2].ToCity, Region = "Россия", TravelTime = "16:30", DistanceKm = 1500 }
+                );
+            }
+            await context.SaveChangesAsync();
+        }
+
         // Создаём admin-пользователя
         const string adminEmail = "admin@tickets.ru";
         if (await userManager.FindByEmailAsync(adminEmail) == null)

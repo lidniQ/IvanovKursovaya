@@ -1,0 +1,89 @@
+@page "/routes/stops/{RouteId:int}"
+@rendermode InteractiveServer
+@using IvanovKursovaya.Data
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<TicketContext> DbFactory
+
+<PageTitle>Маршрут автобуса</PageTitle>
+
+@if (Loading)
+{
+    <p><em>Загрузка...</em></p>
+}
+else if (Route is null)
+{
+    <p>Маршрут не найден.</p>
+}
+else
+{
+    <div class="page-header">
+        <h4 style="color: var(--color-primary); font-weight: 700; margin:0;">
+            Маршрут автобуса @Route.FromCity — @Route.ToCity
+        </h4>
+        <a href="javascript:history.back()" class="btn btn-outline-secondary btn-sm">← Назад</a>
+    </div>
+
+    @if (RouteStops.Any())
+    {
+        <div class="card">
+            <div class="table-responsive">
+                <table class="table table-hover stops-table mb-0">
+                    <thead>
+                        <tr>
+                            <th style="width:60px;">№</th>
+                            <th>Наименование станции</th>
+                            <th>Время в пути</th>
+                            <th>Расстояние</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var stop in RouteStops.OrderBy(s => s.StopNumber))
+                        {
+                            <tr>
+                                <td>@stop.StopNumber</td>
+                                <td>
+                                    <strong><a href="#">@stop.StationName</a></strong><br />
+                                    <small>@stop.Region</small>
+                                </td>
+                                <td>@(stop.TravelTime ?? "--")</td>
+                                <td>@(stop.DistanceKm.HasValue ? stop.DistanceKm.Value.ToString() : "--")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <p class="text-muted mt-3 small">
+            * отображение точек на карте может быть неточным, точный маршрут следования уточняйте в справочной автовокзала
+        </p>
+    }
+    else
+    {
+        <div class="alert alert-info">Информация об остановках маршрута отсутствует.</div>
+    }
+
+}
+
+@code {
+    [Parameter] public int RouteId { get; set; }
+
+    private Route? Route;
+    private List<RouteStop> RouteStops = new();
+    private bool Loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await using var ctx = await DbFactory.CreateDbContextAsync();
+            Route = await ctx.Routes.FindAsync(RouteId);
+            if (Route is not null)
+                RouteStops = await ctx.RouteStops.Where(s => s.RouteId == RouteId).ToListAsync();
+        }
+        finally
+        {
+            Loading = false;
+        }
+    }
+}

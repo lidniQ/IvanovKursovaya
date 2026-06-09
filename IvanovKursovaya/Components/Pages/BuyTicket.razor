@@ -12,8 +12,6 @@
 
 <PageTitle>Купить билет</PageTitle>
 
-<h1>Купить билет</h1>
-
 @if (Loading)
 {
     <p><em>Загрузка...</em></p>
@@ -24,52 +22,174 @@ else if (Schedule is null)
 }
 else
 {
-    <div class="card mb-4">
-        <div class="card-body">
-            <h5 class="card-title">@Schedule.Route?.FromCity → @Schedule.Route?.ToCity</h5>
-            <p class="card-text">
-                <strong>Дата:</strong> @Schedule.DepartureDate.ToString("dd.MM.yyyy")<br />
-                <strong>Отправление:</strong> @Schedule.DepartureTime.ToString(@"hh\:mm")<br />
-                <strong>Прибытие:</strong> @Schedule.ArrivalTime.ToString(@"hh\:mm")<br />
-                <strong>Перевозчик:</strong> @Schedule.Carrier<br />
-                <strong>Цена:</strong> @Schedule.Price.ToString("N2") ₽
-            </p>
+    <h4 class="mb-4">Введите данные пассажиров</h4>
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-3">Пассажир №1 <span class="text-muted">(Взрослый)</span></h6>
+
+                    <EditForm Model="Ticket" OnValidSubmit="BuyConfirmed" FormName="buy-ticket">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary class="text-danger" />
+
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Фамилия</label>
+                                <InputText @bind-Value="Ticket.PassengerSurname" class="form-control" placeholder="Иванов" />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Имя</label>
+                                <InputText @bind-Value="Ticket.PassengerIma" class="form-control" placeholder="Иван" />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label d-flex align-items-center gap-2">
+                                    Отчество
+                                    <div class="form-check mb-0">
+                                        <input type="checkbox" class="form-check-input" @bind="noPatronymic" id="noPatr" />
+                                        <label class="form-check-label small text-muted" for="noPatr">Нет отчества</label>
+                                    </div>
+                                </label>
+                                <InputText @bind-Value="Ticket.PassengerPatronymic" class="form-control" placeholder="Иванович" disabled="@noPatronymicAttr" />
+                            </div>
+                        </div>
+
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Дата рождения</label>
+                                <InputDate @bind-Value="passengerBirthDate" class="form-control" />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Пол</label>
+                                <InputSelect @bind-Value="Ticket.PassengerGender" class="form-select">
+                                    <option value="">Не выбрано</option>
+                                    <option value="Мужской">Мужской</option>
+                                    <option value="Женский">Женский</option>
+                                </InputSelect>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Гражданство</label>
+                                <InputSelect @bind-Value="Ticket.PassengerCitizenship" class="form-select">
+                                    <option value="РОССИЯ">РОССИЯ</option>
+                                    <option value="Беларусь">Беларусь</option>
+                                    <option value="Казахстан">Казахстан</option>
+                                    <option value="Другое">Другое</option>
+                                </InputSelect>
+                            </div>
+                        </div>
+
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Тип документа</label>
+                                <InputSelect @bind-Value="Ticket.DocumentType" class="form-select">
+                                    <option value="Паспорт гражданина РФ">Паспорт гражданина РФ</option>
+                                    <option value="Загранпаспорт">Загранпаспорт</option>
+                                    <option value="Свидетельство о рождении">Свидетельство о рождении</option>
+                                </InputSelect>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Номер документа</label>
+                                <InputText @bind-Value="Ticket.DocumentNumber" class="form-control" placeholder="1234 123456" />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Тариф</label>
+                                <InputSelect @bind-Value="Ticket.Tariff" class="form-select">
+                                    <option value="Пассажирский">Пассажирский</option>
+                                    <option value="Детский">Детский (до 12 лет)</option>
+                                    <option value="Льготный">Льготный</option>
+                                </InputSelect>
+                            </div>
+                        </div>
+
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Выбрать посадочное место</label>
+                                <InputSelect @bind-Value="Ticket.SeatNumber" class="form-select">
+                                    <option value="0">Любое</option>
+                                    @for (int i = 1; i <= Schedule.TotalSeats; i++)
+                                    {
+                                        var seat = i;
+                                        var taken = takenSeats.Contains(seat);
+                                        <option value="@seat" disabled="@taken">@seat @(taken ? "(занято)" : "")</option>
+                                    }
+                                </InputSelect>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Email</label>
+                                <InputText @bind-Value="Ticket.PassengerEmail" class="form-control" type="email" />
+                            </div>
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(errorMessage))
+                        {
+                            <div class="alert alert-danger">@errorMessage</div>
+                        }
+
+                        <div class="d-flex gap-2 mt-3">
+                            <button type="submit" class="btn btn-primary px-4" disabled="@Loading">Оформить заказ</button>
+                            <a href="@($"/schedules?routeid={Schedule.RouteId}")" class="btn btn-outline-secondary">Отмена</a>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="order-summary">
+                <h5>Ваш заказ</h5>
+                <div class="mb-3">
+                    <div class="d-flex gap-2 align-items-start mb-2">
+                        <div class="text-center" style="min-width:60px;">
+                            <div class="fw-bold">@Schedule.DepartureTime.ToString(@"hh\:mm")</div>
+                            <div class="text-muted small">@Schedule.DepartureDate.ToString("d MMM", new System.Globalization.CultureInfo("ru-RU"))</div>
+                        </div>
+                        <div class="text-muted">○</div>
+                        <div>
+                            <div class="fw-semibold">@Schedule.Route?.FromCity</div>
+                            <div class="text-muted small">Пригородный АВ</div>
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2 align-items-start">
+                        <div class="text-center" style="min-width:60px;">
+                            <div class="fw-bold">@Schedule.ArrivalTime.ToString(@"hh\:mm")</div>
+                            <div class="text-muted small">@Schedule.DepartureDate.ToString("d MMM", new System.Globalization.CultureInfo("ru-RU"))</div>
+                        </div>
+                        <div class="text-muted">●</div>
+                        <div>
+                            <div class="fw-semibold">@Schedule.Route?.ToCity</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-2">
+                    <small class="text-muted">🚌 Перевозчик:</small><br />
+                    <span class="small">@Schedule.Carrier</span>
+                </div>
+
+                <hr />
+
+                <div class="d-flex justify-content-between mb-1">
+                    <span class="text-muted small">Пассажиры:</span>
+                    <span class="small">1 Взрослый — @Schedule.Price.ToString("N2") руб.</span>
+                </div>
+                <div class="d-flex justify-content-between mb-1">
+                    <span class="text-muted small">Сервисный сбор:</span>
+                    <span class="small">@(Math.Round(Schedule.Price * 0.09m, 2).ToString("N2")) руб.</span>
+                </div>
+                <div class="d-flex justify-content-between mb-1">
+                    <span class="text-muted small">Отправление:</span>
+                    <span class="small fw-semibold">@Schedule.DepartureDate.ToString("dd.MM.yyyy")</span>
+                </div>
+
+                <hr />
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="fw-bold">Итого:</span>
+                    <span class="total-price">@(Schedule.Price + Math.Round(Schedule.Price * 0.09m, 2)).ToString("N2") руб.</span>
+                </div>
+            </div>
         </div>
     </div>
-
-    @if (takenSeats.Count > 0)
-    {
-        <p><strong>Занятые места:</strong> @string.Join(", ", takenSeats)</p>
-    }
-
-    <EditForm Model="Ticket" OnValidSubmit="BuyConfirmed" FormName="buy-ticket">
-        <DataAnnotationsValidator />
-        <ValidationSummary />
-
-        <div class="mb-3">
-            <label>Имя пассажира</label>
-            <InputText @bind-Value="Ticket.PassengerName" class="form-control" />
-            <ValidationMessage For="() => Ticket.PassengerName" />
-        </div>
-        <div class="mb-3">
-            <label>Email</label>
-            <InputText @bind-Value="Ticket.PassengerEmail" class="form-control" />
-            <ValidationMessage For="() => Ticket.PassengerEmail" />
-        </div>
-        <div class="mb-3">
-            <label>Номер места (1–@Schedule.TotalSeats)</label>
-            <InputNumber @bind-Value="Ticket.SeatNumber" class="form-control" min="1" max="@Schedule.TotalSeats" />
-            <ValidationMessage For="() => Ticket.SeatNumber" />
-        </div>
-
-        @if (!string.IsNullOrEmpty(errorMessage))
-        {
-            <div class="alert alert-danger">@errorMessage</div>
-        }
-
-        <button type="submit" class="btn btn-success" disabled="@Loading">Купить билет</button>
-        <a href="@($"/schedules?routeid={Schedule.RouteId}")" class="btn btn-secondary">Отмена</a>
-    </EditForm>
 }
 
 @code {
@@ -83,6 +203,10 @@ else
     private List<int> takenSeats = new();
     private bool Loading = true;
     private string? errorMessage;
+    private bool noPatronymic = false;
+    private DateTime passengerBirthDate = new DateTime(1990, 1, 1);
+
+    private string? noPatronymicAttr => noPatronymic ? "true" : null;
 
     protected override async Task OnInitializedAsync()
     {
@@ -107,8 +231,13 @@ else
                 var user = await UserManager.GetUserAsync(authState.User);
                 if (user is not null)
                 {
+                    Ticket.PassengerSurname = user.Surname;
+                    Ticket.PassengerIma = user.Ima;
+                    Ticket.PassengerPatronymic = user.SecSurname;
                     Ticket.PassengerName = $"{user.Surname} {user.Ima}";
                     Ticket.PassengerEmail = user.Email ?? "";
+                    Ticket.DocumentType = user.DocumentType;
+                    Ticket.DocumentNumber = user.DocumentNumber;
                 }
             }
         }
@@ -123,11 +252,28 @@ else
         Loading = true;
         try
         {
+            if (Ticket.SeatNumber == 0)
+            {
+                var firstFree = Enumerable.Range(1, Schedule!.TotalSeats).FirstOrDefault(s => !takenSeats.Contains(s));
+                if (firstFree == 0)
+                {
+                    errorMessage = "Все места заняты.";
+                    return;
+                }
+                Ticket.SeatNumber = firstFree;
+            }
+
             if (takenSeats.Contains(Ticket.SeatNumber))
             {
                 errorMessage = $"Место {Ticket.SeatNumber} уже занято. Выберите другое.";
                 return;
             }
+
+            if (noPatronymic)
+                Ticket.PassengerPatronymic = "";
+
+            Ticket.PassengerBirthDate = passengerBirthDate;
+            Ticket.PassengerName = $"{Ticket.PassengerSurname} {Ticket.PassengerIma} {Ticket.PassengerPatronymic}".Trim();
 
             await using var context = await DbFactory.CreateDbContextAsync();
 

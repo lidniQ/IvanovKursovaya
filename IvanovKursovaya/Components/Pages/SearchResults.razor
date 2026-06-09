@@ -1,0 +1,225 @@
+@page "/search"
+@rendermode InteractiveServer
+@using IvanovKursovaya.Data
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<TicketContext> DbFactory
+@inject NavigationManager Navigation
+
+<PageTitle>Поиск рейсов</PageTitle>
+
+@if (route is not null)
+{
+    <div class="d-flex justify-content-between align-items-start mb-3">
+        <div>
+            <h4 class="mb-1" style="color: var(--color-primary); font-weight: 700;">
+                Расписание автобуса @route.FromCity — @route.ToCity
+            </h4>
+        </div>
+        @if (schedules.Any())
+        {
+            <div class="text-end">
+                <span class="text-muted small">от</span>
+                <span style="font-size: 1.5rem; font-weight: 700; color: var(--color-primary);">
+                    @schedules.Min(s => s.Price).ToString("N0")
+                </span>
+                <sup style="font-size:0.9rem; color: var(--color-primary);">₽</sup>
+            </div>
+        }
+    </div>
+}
+else
+{
+    <div class="d-flex align-items-center gap-3 mb-3">
+        <h4 class="mb-0" style="color: var(--color-primary); font-weight: 700;">
+            Поиск рейсов: @FromCity → @ToCity
+        </h4>
+    </div>
+}
+
+<div class="date-nav mb-3">
+    <button class="btn-date" @onclick="PrevDay">← @currentDate.AddDays(-1).ToString("d MMMM", new System.Globalization.CultureInfo("ru-RU"))</button>
+    <span class="current-date">@currentDate.ToString("d MMMM yyyy, dddd", new System.Globalization.CultureInfo("ru-RU"))</span>
+    <button class="btn-date" @onclick="NextDay">@currentDate.AddDays(1).ToString("d MMMM", new System.Globalization.CultureInfo("ru-RU")) →</button>
+</div>
+
+<div class="sort-options mb-3">
+    Сортировать:
+    <a class="@(sortByPrice ? "active-sort" : "")" @onclick="() => SortBy(true)">по цене</a>
+    |
+    <a class="@(!sortByPrice ? "active-sort" : "")" @onclick="() => SortBy(false)">по времени ↓</a>
+</div>
+
+@if (Loading)
+{
+    <p><em>Загрузка...</em></p>
+}
+else if (!schedules.Any())
+{
+    <div class="alert alert-info">
+        Рейсы на выбранную дату не найдены. Попробуйте другую дату или другой маршрут.
+    </div>
+    <a href="/" class="btn btn-outline-primary">← Назад к поиску</a>
+}
+else
+{
+    @foreach (var s in sortedSchedules)
+    {
+        var takenSeats = s.Tickets?.Count ?? 0;
+        var freeSeats = s.TotalSeats - takenSeats;
+        var travelTime = s.ArrivalTime - s.DepartureTime;
+
+        <div class="schedule-card">
+            <div class="row align-items-center">
+                <div class="col-lg-5">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="text-center">
+                            <div class="time-big">@s.DepartureTime.ToString(@"hh\:mm")</div>
+                            <div class="time-date">@s.DepartureDate.ToString("d MMM", new System.Globalization.CultureInfo("ru-RU"))</div>
+                            <div class="text-muted small">@(s.Route?.FromCity ?? FromCity)</div>
+                            <div class="text-muted small">@(s.Route?.FromCity ?? FromCity)</div>
+                        </div>
+                        <div class="text-center flex-shrink-0">
+                            <div class="text-muted small">@($"{(int)travelTime.TotalHours} ч {travelTime.Minutes} мин в пути")</div>
+                            <div class="route-arrow">→</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="time-big">@s.ArrivalTime.ToString(@"hh\:mm")</div>
+                            <div class="time-date">@s.DepartureDate.ToString("d MMM", new System.Globalization.CultureInfo("ru-RU"))</div>
+                            <div class="text-muted small">@(s.Route?.ToCity ?? ToCity)</div>
+                            <div class="text-muted small">@(s.Route?.ToCity ?? ToCity)</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-4 text-center">
+                    <button class="btn-details" @onclick="() => ToggleDetails(s.ScheduleId)">
+                        @(expandedDetails.Contains(s.ScheduleId) ? "Свернуть детали ▲" : "Детали рейса ▼")
+                    </button>
+                    <span class="mx-2 text-muted">|</span>
+                    <a href="/routes/stops/@(s.RouteId)" class="btn-route-info">Подробнее о маршруте</a>
+                </div>
+                <div class="col-lg-3 text-end">
+                    <div class="price-tag">@s.Price.ToString("N1") <small>руб.</small></div>
+                    <div>
+                        <AuthorizeView>
+                            <Authorized>
+                                <button class="btn-select btn" @onclick="() => BuyTicket(s.ScheduleId)">Выбрать</button>
+                            </Authorized>
+                            <NotAuthorized>
+                                <a href="/Account/Login" class="btn-select btn">Войти для покупки</a>
+                            </NotAuthorized>
+                        </AuthorizeView>
+                    </div>
+                    <div class="text-muted small mt-1">Свободных мест @(freeSeats > 3 ? "больше 3-х" : freeSeats.ToString())</div>
+                </div>
+            </div>
+
+            @if (expandedDetails.Contains(s.ScheduleId))
+            {
+                <div class="details-panel mt-2">
+                    <div class="mb-2">
+                        <strong>→</strong> Рейс № @s.ScheduleId | @(s.Route?.FromCity ?? FromCity) — @(s.Route?.ToCity ?? ToCity) | Междугородное
+                    </div>
+                    <div class="mb-1">
+                        <strong>🚌 Перевозчик:</strong> @s.Carrier
+                    </div>
+                    <div class="text-muted small">
+                        Время работы: 10:00 - 17:00<br />
+                        Количество мест: @s.TotalSeats
+                    </div>
+                </div>
+            }
+        </div>
+    }
+}
+
+@code {
+    [SupplyParameterFromQuery] public string? From { get; set; }
+    [SupplyParameterFromQuery] public string? To { get; set; }
+    [SupplyParameterFromQuery] public string? Date { get; set; }
+
+    private string FromCity => From ?? "";
+    private string ToCity => To ?? "";
+
+    private List<Schedule> schedules = new();
+    private Route? route;
+    private DateTime currentDate;
+    private bool sortByPrice = true;
+    private bool Loading = true;
+    private HashSet<int> expandedDetails = new();
+
+    private IEnumerable<Schedule> sortedSchedules =>
+        sortByPrice
+            ? schedules.OrderBy(s => s.Price)
+            : schedules.OrderBy(s => s.DepartureTime);
+
+    protected override async Task OnInitializedAsync()
+    {
+        currentDate = DateTime.TryParse(Date, out var d) ? d : DateTime.Today;
+        await LoadSchedules();
+    }
+
+    private async Task LoadSchedules()
+    {
+        Loading = true;
+        try
+        {
+            await using var ctx = await DbFactory.CreateDbContextAsync();
+            var query = ctx.Schedules
+                .Include(s => s.Route)
+                .Include(s => s.Tickets)
+                .Where(s => s.DepartureDate.Date == currentDate.Date);
+
+            if (!string.IsNullOrWhiteSpace(FromCity))
+                query = query.Where(s => s.Route.FromCity.ToLower().Contains(FromCity.ToLower()));
+            if (!string.IsNullOrWhiteSpace(ToCity))
+                query = query.Where(s => s.Route.ToCity.ToLower().Contains(ToCity.ToLower()));
+
+            schedules = await query.ToListAsync();
+
+            if (schedules.Any())
+                route = schedules.First().Route;
+            else if (!string.IsNullOrWhiteSpace(FromCity))
+            {
+                route = await ctx.Routes
+                    .FirstOrDefaultAsync(r =>
+                        r.FromCity.ToLower().Contains(FromCity.ToLower()) &&
+                        r.ToCity.ToLower().Contains(ToCity.ToLower()));
+            }
+        }
+        finally
+        {
+            Loading = false;
+        }
+    }
+
+    private void ToggleDetails(int scheduleId)
+    {
+        if (!expandedDetails.Remove(scheduleId))
+            expandedDetails.Add(scheduleId);
+    }
+
+    private void SortBy(bool byPrice)
+    {
+        sortByPrice = byPrice;
+    }
+
+    private async Task PrevDay()
+    {
+        currentDate = currentDate.AddDays(-1);
+        expandedDetails.Clear();
+        await LoadSchedules();
+    }
+
+    private async Task NextDay()
+    {
+        currentDate = currentDate.AddDays(1);
+        expandedDetails.Clear();
+        await LoadSchedules();
+    }
+
+    private void BuyTicket(int scheduleId)
+    {
+        Navigation.NavigateTo($"/buy?scheduleid={scheduleId}");
+    }
+}

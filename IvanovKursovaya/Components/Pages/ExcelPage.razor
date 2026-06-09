@@ -17,6 +17,9 @@
 
 <h3>Импорт</h3>
 <p>Загрузите файл .xlsx с листами «Routes» и «Schedules».</p>
+<div class="mb-2">
+    <button class="btn btn-outline-primary btn-sm" @onclick="DownloadTemplate" disabled="@Loading">Скачать шаблон для импорта</button>
+</div>
 <InputFile OnChange="ImportExcel" accept=".xlsx" class="form-control mb-2" style="max-width:400px" />
 
 @if (!string.IsNullOrEmpty(statusMessage))
@@ -116,6 +119,67 @@
             wb.SaveAs(ms);
             var bytes = ms.ToArray();
             await JS.InvokeVoidAsync("BlazorDownloadFile", "tickets_export.xlsx",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", bytes);
+        }
+        finally
+        {
+            Loading = false;
+        }
+    }
+
+    private async Task DownloadTemplate()
+    {
+        Loading = true;
+        try
+        {
+            using var wb = new XLWorkbook();
+
+            var wsR = wb.Worksheets.Add("Routes");
+            wsR.Cell(1, 1).Value = "Откуда";
+            wsR.Cell(1, 2).Value = "Куда";
+            wsR.Cell(1, 3).Value = "Расстояние (км)";
+            wsR.Row(1).Style.Font.Bold = true;
+            wsR.Row(1).Style.Fill.BackgroundColor = XLColor.LightBlue;
+            wsR.Cell(2, 1).Value = "Москва"; wsR.Cell(2, 2).Value = "Санкт-Петербург"; wsR.Cell(2, 3).Value = 700;
+            wsR.Cell(3, 1).Value = "Казань"; wsR.Cell(3, 2).Value = "Нижний Новгород"; wsR.Cell(3, 3).Value = 410;
+            wsR.Cell(4, 1).Value = "Чебоксары"; wsR.Cell(4, 2).Value = "Урмары"; wsR.Cell(4, 3).Value = 72;
+            wsR.Columns().AdjustToContents();
+
+            var wsS = wb.Worksheets.Add("Schedules");
+            wsS.Cell(1, 1).Value = "RouteId";
+            wsS.Cell(1, 2).Value = "Дата (дд.мм.гггг)";
+            wsS.Cell(1, 3).Value = "Отправление (чч:мм)";
+            wsS.Cell(1, 4).Value = "Прибытие (чч:мм)";
+            wsS.Cell(1, 5).Value = "Перевозчик";
+            wsS.Cell(1, 6).Value = "Количество мест";
+            wsS.Cell(1, 7).Value = "Цена (руб.)";
+            wsS.Row(1).Style.Font.Bold = true;
+            wsS.Row(1).Style.Fill.BackgroundColor = XLColor.LightBlue;
+            wsS.Cell(2, 1).Value = 1; wsS.Cell(2, 2).Value = "11.06.2026"; wsS.Cell(2, 3).Value = "06:20"; wsS.Cell(2, 4).Value = "07:35"; wsS.Cell(2, 5).Value = "ИП Иванов Н.М."; wsS.Cell(2, 6).Value = 40; wsS.Cell(2, 7).Value = 398.20;
+            wsS.Cell(3, 1).Value = 1; wsS.Cell(3, 2).Value = "11.06.2026"; wsS.Cell(3, 3).Value = "06:55"; wsS.Cell(3, 4).Value = "08:20"; wsS.Cell(3, 5).Value = "ИП Иванов Н.М."; wsS.Cell(3, 6).Value = 40; wsS.Cell(3, 7).Value = 398.20;
+            wsS.Cell(4, 1).Value = 2; wsS.Cell(4, 2).Value = "12.06.2026"; wsS.Cell(4, 3).Value = "09:00"; wsS.Cell(4, 4).Value = "18:30"; wsS.Cell(4, 5).Value = "АвтоЭкспресс"; wsS.Cell(4, 6).Value = 35; wsS.Cell(4, 7).Value = 1500;
+            wsS.Columns().AdjustToContents();
+
+            var wsT = wb.Worksheets.Add("Tickets");
+            wsT.Cell(1, 1).Value = "ScheduleId";
+            wsT.Cell(1, 2).Value = "Фамилия";
+            wsT.Cell(1, 3).Value = "Имя";
+            wsT.Cell(1, 4).Value = "Отчество";
+            wsT.Cell(1, 5).Value = "Email";
+            wsT.Cell(1, 6).Value = "Тип документа";
+            wsT.Cell(1, 7).Value = "Номер документа";
+            wsT.Cell(1, 8).Value = "Место";
+            wsT.Row(1).Style.Font.Bold = true;
+            wsT.Row(1).Style.Fill.BackgroundColor = XLColor.LightBlue;
+            wsT.Cell(2, 1).Value = 1; wsT.Cell(2, 2).Value = "Иванов"; wsT.Cell(2, 3).Value = "Иван"; wsT.Cell(2, 4).Value = "Иванович"; wsT.Cell(2, 5).Value = "ivan@example.com"; wsT.Cell(2, 6).Value = "Паспорт гражданина РФ"; wsT.Cell(2, 7).Value = "1234 567890"; wsT.Cell(2, 8).Value = 5;
+            wsT.Cell(3, 1).Value = 1; wsT.Cell(3, 2).Value = "Петрова"; wsT.Cell(3, 3).Value = "Мария"; wsT.Cell(3, 4).Value = "Сергеевна"; wsT.Cell(3, 5).Value = "maria@example.com"; wsT.Cell(3, 6).Value = "Паспорт гражданина РФ"; wsT.Cell(3, 7).Value = "4567 890123"; wsT.Cell(3, 8).Value = 7;
+            wsT.Cell(4, 1).Value = 2; wsT.Cell(4, 2).Value = "Сидоров"; wsT.Cell(4, 3).Value = "Алексей"; wsT.Cell(4, 4).Value = "Петрович"; wsT.Cell(4, 5).Value = "alexey@example.com"; wsT.Cell(4, 6).Value = "Паспорт гражданина РФ"; wsT.Cell(4, 7).Value = "7890 123456"; wsT.Cell(4, 8).Value = 12;
+            wsT.Columns().AdjustToContents();
+
+            using var ms = new MemoryStream();
+            wb.SaveAs(ms);
+            var bytes = ms.ToArray();
+            await JS.InvokeVoidAsync("BlazorDownloadFile", "import_template.xlsx",
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", bytes);
         }
         finally

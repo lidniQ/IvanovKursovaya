@@ -19,5 +19,11 @@ public class ApplicationUser : IdentityUser
 
     public int? CityId { get; set; }
 
+    [StringLength(100)]
+    public string DocumentType { get; set; } = "Паспорт гражданина РФ";
+
+    [StringLength(50)]
+    public string DocumentNumber { get; set; } = "";
+
     public virtual City? City { get; set; }
 }

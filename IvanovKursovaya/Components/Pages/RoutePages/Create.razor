@@ -6,6 +6,7 @@
 @attribute [Authorize(Roles = "Administrator")]
 @inject IDbContextFactory<TicketContext> DbFactory
 @inject NavigationManager Navigation
+@inject IWebHostEnvironment WebHostEnvironment
 
 <PageTitle>Добавить маршрут</PageTitle>
 
@@ -65,7 +66,9 @@
             var file = e.File;
             var ext = Path.GetExtension(file.Name);
             var fileName = $"{Guid.NewGuid()}{ext}";
-            var path = Path.Combine("wwwroot", "uploads", fileName);
+            var uploadsDir = Path.Combine(WebHostEnvironment.WebRootPath, "uploads");
+            Directory.CreateDirectory(uploadsDir);
+            var path = Path.Combine(uploadsDir, fileName);
             await using var fs = new FileStream(path, FileMode.Create);
             await file.OpenReadStream(5 * 1024 * 1024).CopyToAsync(fs);
             Route.ImagePath = $"/uploads/{fileName}";
