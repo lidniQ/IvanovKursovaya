@@ -1,6 +1,9 @@
 @page "/"
 @rendermode InteractiveServer
+@using IvanovKursovaya.Data
+@using Microsoft.EntityFrameworkCore
 @inject NavigationManager Navigation
+@inject IDbContextFactory<TicketContext> DbFactory
 
 <PageTitle>Купить билет на автобус</PageTitle>
 
@@ -13,11 +16,23 @@
     <div class="row g-3 align-items-end">
         <div class="col-md-4">
             <label class="form-label text-white fw-semibold mb-1">Пункт отправления</label>
-            <input type="text" class="form-control" placeholder="Откуда?" @bind="fromCity" @bind:event="oninput" />
+            <select class="form-select" @onchange="OnFromCityChanged">
+                <option value="">Откуда?</option>
+                @foreach (var city in fromCities)
+                {
+                    <option value="@city" selected="@(city == fromCity)">@city</option>
+                }
+            </select>
         </div>
         <div class="col-md-4">
             <label class="form-label text-white fw-semibold mb-1">Пункт прибытия</label>
-            <input type="text" class="form-control" placeholder="Куда?" @bind="toCity" @bind:event="oninput" />
+            <select class="form-select" @bind="toCity" disabled="@string.IsNullOrEmpty(fromCity)">
+                <option value="">@(string.IsNullOrEmpty(fromCity) ? "Сначала выберите откуда" : "Куда?")</option>
+                @foreach (var city in toCities)
+                {
+                    <option value="@city">@city</option>
+                }
+            </select>
         </div>
         <div class="col-md-2">
             <label class="form-label text-white fw-semibold mb-1">Дата выезда</label>
@@ -62,6 +77,37 @@
     private string fromCity = "";
     private string toCity = "";
     private DateTime searchDate = DateTime.Today;
+
+    private List<string> fromCities = new();
+    private List<string> toCities = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var ctx = await DbFactory.CreateDbContextAsync();
+        fromCities = await ctx.Routes
+            .Select(r => r.FromCity)
+            .Distinct()
+            .OrderBy(c => c)
+            .ToListAsync();
+    }
+
+    private async Task OnFromCityChanged(ChangeEventArgs e)
+    {
+        fromCity = e.Value?.ToString() ?? "";
+        toCity = "";
+        toCities.Clear();
+
+        if (!string.IsNullOrEmpty(fromCity))
+        {
+            await using var ctx = await DbFactory.CreateDbContextAsync();
+            toCities = await ctx.Routes
+                .Where(r => r.FromCity == fromCity)
+                .Select(r => r.ToCity)
+                .Distinct()
+                .OrderBy(c => c)
+                .ToListAsync();
+        }
+    }
 
     private void Search()
     {
