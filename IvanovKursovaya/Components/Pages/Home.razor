@@ -76,7 +76,7 @@
 @code {
     private string fromCity = "";
     private string toCity = "";
-    private DateTime searchDate = DateTime.Today;
+    private DateTime searchDate = DateTime.Today.AddDays(1);
 
     private List<string> fromCities = new();
     private List<string> toCities = new();

@@ -77,9 +77,8 @@ else
                             <div class="time-big">@s.DepartureTime.ToString(@"hh\:mm")</div>
                             <div class="time-date">@s.DepartureDate.ToString("d MMM", new System.Globalization.CultureInfo("ru-RU"))</div>
                             <div class="text-muted small">@(s.Route?.FromCity ?? FromCity)</div>
-                            <div class="text-muted small">@(s.Route?.FromCity ?? FromCity)</div>
                         </div>
-                        <div class="text-center flex-shrink-0">
+                        <div class="text-center shrink-0">
                             <div class="text-muted small">@($"{(int)travelTime.TotalHours} ч {travelTime.Minutes} мин в пути")</div>
                             <div class="route-arrow">→</div>
                         </div>
@@ -165,15 +164,19 @@ else
         try
         {
             await using var ctx = await DbFactory.CreateDbContextAsync();
+
+            var dayStart = currentDate.Date;
+            var dayEnd = dayStart.AddDays(1);
+
             var query = ctx.Schedules
                 .Include(s => s.Route)
                 .Include(s => s.Tickets)
-                .Where(s => s.DepartureDate.Date == currentDate.Date);
+                .Where(s => s.DepartureDate >= dayStart && s.DepartureDate < dayEnd);
 
             if (!string.IsNullOrWhiteSpace(FromCity))
-                query = query.Where(s => s.Route.FromCity.ToLower().Contains(FromCity.ToLower()));
+                query = query.Where(s => s.Route.FromCity == FromCity);
             if (!string.IsNullOrWhiteSpace(ToCity))
-                query = query.Where(s => s.Route.ToCity.ToLower().Contains(ToCity.ToLower()));
+                query = query.Where(s => s.Route.ToCity == ToCity);
 
             schedules = await query.ToListAsync();
 
@@ -182,9 +185,7 @@ else
             else if (!string.IsNullOrWhiteSpace(FromCity))
             {
                 route = await ctx.Routes
-                    .FirstOrDefaultAsync(r =>
-                        r.FromCity.ToLower().Contains(FromCity.ToLower()) &&
-                        r.ToCity.ToLower().Contains(ToCity.ToLower()));
+                    .FirstOrDefaultAsync(r => r.FromCity == FromCity && r.ToCity == ToCity);
             }
         }
         finally
