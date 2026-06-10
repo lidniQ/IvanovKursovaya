@@ -1,0 +1,81 @@
+@page "/cities/delete/{CityId:int}"
+@rendermode InteractiveServer
+@using IvanovKursovaya.Data
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
+@attribute [Authorize(Roles = "Administrator")]
+@inject IDbContextFactory<TicketContext> DbFactory
+@inject NavigationManager Navigation
+
+<PageTitle>Удалить город</PageTitle>
+
+<h1>Удалить город</h1>
+
+@if (Loading)
+{
+    <p><em>Загрузка...</em></p>
+}
+else if (City is null)
+{
+    <p>Город не найден.</p>
+    <a href="/cities" class="btn btn-secondary">Назад</a>
+}
+else
+{
+    <div class="alert alert-warning">
+        <p>Вы уверены, что хотите удалить город <strong>@City.CityName</strong>?</p>
+        <small class="text-muted">Удаление невозможно, если с городом связаны пользователи.</small>
+    </div>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger">@errorMessage</div>
+    }
+
+    <button class="btn btn-danger" @onclick="DeleteCity">Удалить</button>
+    <a href="/cities" class="btn btn-secondary ms-2">Отмена</a>
+}
+
+@code {
+    [Parameter] public int CityId { get; set; }
+
+    private City? City;
+    private bool Loading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await using var context = await DbFactory.CreateDbContextAsync();
+            City = await context.Cities.FindAsync(CityId);
+        }
+        finally
+        {
+            Loading = false;
+        }
+    }
+
+    private async Task DeleteCity()
+    {
+        try
+        {
+            await using var context = await DbFactory.CreateDbContextAsync();
+            var city = await context.Cities.FindAsync(CityId);
+            if (city != null)
+            {
+                context.Cities.Remove(city);
+                await context.SaveChangesAsync();
+            }
+            Navigation.NavigateTo("/cities");
+        }
+        catch (DbUpdateException)
+        {
+            errorMessage = "Невозможно удалить город, так как с ним связаны пользователи. Сначала переназначьте их.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Ошибка при удалении: {ex.Message}";
+        }
+    }
+}

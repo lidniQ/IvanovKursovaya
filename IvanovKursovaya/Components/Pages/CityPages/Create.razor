@@ -1,0 +1,55 @@
+@page "/cities/create"
+@rendermode InteractiveServer
+@using IvanovKursovaya.Data
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
+@attribute [Authorize(Roles = "Administrator")]
+@inject IDbContextFactory<TicketContext> DbFactory
+@inject NavigationManager Navigation
+
+<PageTitle>Добавить город</PageTitle>
+
+<h1>Добавить город</h1>
+
+<div class="row">
+    <div class="col-md-4">
+        <EditForm Model="City" OnValidSubmit="AddCity">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="mb-3">
+                <label class="form-label">Название города</label>
+                <InputText @bind-Value="City.CityName" class="form-control" />
+                <ValidationMessage For="() => City.CityName" />
+            </div>
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger">@errorMessage</div>
+            }
+
+            <button type="submit" class="btn btn-primary">Сохранить</button>
+            <a href="/cities" class="btn btn-secondary ms-2">Отмена</a>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private City City { get; set; } = new();
+    private string? errorMessage;
+
+    private async Task AddCity()
+    {
+        try
+        {
+            await using var context = await DbFactory.CreateDbContextAsync();
+            await context.Cities.AddAsync(City);
+            await context.SaveChangesAsync();
+            Navigation.NavigateTo("/cities");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Ошибка при сохранении: {ex.Message}";
+        }
+    }
+}

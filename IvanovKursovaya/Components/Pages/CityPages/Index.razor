@@ -1,0 +1,63 @@
+@page "/cities"
+@rendermode InteractiveServer
+@using IvanovKursovaya.Data
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<TicketContext> DbFactory
+
+<PageTitle>Города</PageTitle>
+
+<h1>Города</h1>
+
+<AuthorizeView Roles="Administrator">
+    <Authorized>
+        <p><a href="/cities/create" class="btn btn-primary">Добавить город</a></p>
+    </Authorized>
+</AuthorizeView>
+
+@if (Loading)
+{
+    <p><em>Загрузка...</em></p>
+}
+else
+{
+    <QuickGrid Items="cities" class="table table-striped">
+        <PropertyColumn Property="c => c.CityId" Title="№" />
+        <PropertyColumn Property="c => c.CityName" Title="Название" />
+        <TemplateColumn Title="Действия">
+            @{ var c = context; }
+            <AuthorizeView Roles="Administrator" Context="auth">
+                <Authorized>
+                    <a href="@($"/cities/edit/{c.CityId}")" class="btn btn-sm btn-warning">Изменить</a>
+                    <a href="@($"/cities/delete/{c.CityId}")" class="btn btn-sm btn-danger">Удалить</a>
+                </Authorized>
+            </AuthorizeView>
+        </TemplateColumn>
+    </QuickGrid>
+}
+
+@code {
+    private IQueryable<City> cities = default!;
+    private bool Loading = true;
+    private TicketContext dbContext = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            dbContext = await DbFactory.CreateDbContextAsync();
+            cities = dbContext.Cities;
+        }
+        finally
+        {
+            Loading = false;
+        }
+    }
+
+    public void Dispose()
+    {
+        dbContext?.Dispose();
+    }
+}

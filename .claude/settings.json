@@ -52,7 +52,13 @@
       "PowerShell($env:PATH = [System.Environment]::GetEnvironmentVariable\\(\"PATH\",\"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"PATH\",\"User\"\\); Set-Location \"c:\\\\danil\\\\IvanovKursovaya\\\\IvanovKursovaya\"; dotnet build 2>&1 | Select-Object -Last 8)",
       "Bash(Get-ChildItem -Path \"c:\\\\danil\\\\IvanovKursovaya\\\\IvanovKursovaya\\\\Components\" -Recurse -Include *.razor, *.cs)",
       "Bash(Select-Object -ExpandProperty FullName)",
-      "PowerShell(cd \"c:\\\\danil\\\\IvanovKursovaya\\\\IvanovKursovaya\"; $env:PATH = [System.Environment]::GetEnvironmentVariable\\(\"PATH\",\"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"PATH\",\"User\"\\); dotnet build 2>&1 | Select-Object -Last 20)"
+      "PowerShell(cd \"c:\\\\danil\\\\IvanovKursovaya\\\\IvanovKursovaya\"; $env:PATH = [System.Environment]::GetEnvironmentVariable\\(\"PATH\",\"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"PATH\",\"User\"\\); dotnet build 2>&1 | Select-Object -Last 20)",
+      "Bash(Get-ChildItem -Path \"c:\\\\danil\\\\IvanovKursovaya\" -Recurse -Force -ErrorAction SilentlyContinue)",
+      "Bash(Select-Object -Property FullName, PSIsContainer)",
+      "Bash(ConvertTo-Json)",
+      "Bash(Out-String -Width 300)",
+      "PowerShell(Get-ChildItem -Path \"c:\\\\danil\\\\IvanovKursovaya\\\\IvanovKursovaya\" -Depth 0 -File | Where-Object {$_.Extension -in \".cs\", \".json\", \".csproj\"} | Select-Object Name)",
+      "Bash(dotnet build *)"
     ]
   }
 }

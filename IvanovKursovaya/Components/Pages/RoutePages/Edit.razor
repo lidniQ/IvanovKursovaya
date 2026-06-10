@@ -86,17 +86,29 @@ else
     private async Task UploadImage(InputFileChangeEventArgs e)
     {
         Loading = true;
+        errorMessage = null;
         try
         {
             var file = e.File;
-            var ext = Path.GetExtension(file.Name);
+            var ext = Path.GetExtension(file.Name).ToLowerInvariant();
+            var allowed = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
+            if (!allowed.Contains(ext))
+            {
+                errorMessage = "Допустимые форматы: JPG, PNG, GIF, WEBP.";
+                return;
+            }
             var fileName = $"{Guid.NewGuid()}{ext}";
             var uploadsDir = Path.Combine(WebHostEnvironment.WebRootPath, "uploads");
             Directory.CreateDirectory(uploadsDir);
             var path = Path.Combine(uploadsDir, fileName);
             await using var fs = new FileStream(path, FileMode.Create);
-            await file.OpenReadStream(5 * 1024 * 1024).CopyToAsync(fs);
+            await file.OpenReadStream(10 * 1024 * 1024).CopyToAsync(fs);
             Route!.ImagePath = $"/uploads/{fileName}";
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Ошибка загрузки изображения: {ex.Message}";
         }
         finally
         {
